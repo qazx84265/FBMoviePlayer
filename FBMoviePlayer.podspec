@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "FBMoviePlayer"
-  s.version      = "0.3.8"
+  s.version      = "0.3.9"
   s.summary      = "movie player for iOS"
 
   # This description is used to generate tags and improve search results.
@@ -80,7 +80,7 @@ Pod::Spec.new do |s|
   #  Supports git, hg, bzr, svn and HTTP.
   #
 
-  s.source       = { :git => "https://github.com/qazx84265/FBMoviePlayer", :tag => s.version.to_s }
+  s.source       = { :git => "https://github.com/qazx84265/FBMoviePlayer.git", :tag => s.version.to_s }
 
 
   # ――― Source Code ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
@@ -132,7 +132,7 @@ s.source_files  = "FBMoviePlayer/**/*.{h,m}"
 
   # s.requires_arc = true
 
-  s.xcconfig = { "HEADER_SEARCH_PATHS" => "$(SDKROOT)/FFmpeg/include", "LIBRARY_SEARCH_PATHS" => "$(SDKROOT)/FFmpeg/lib" }
-  s.dependency "Masonry", "~> 1.0.2"
+#s.xcconfig = { "HEADER_SEARCH_PATHS" => "FFmpeg/include", "LIBRARY_SEARCH_PATHS" => "FFmpeg/lib" }
+  s.dependency = 'Masonry'
 
 end

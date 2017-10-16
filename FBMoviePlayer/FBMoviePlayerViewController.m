@@ -7,6 +7,7 @@
 //
 
 #import <MediaPlayer/MediaPlayer.h>
+#import <Masonry/Masonry.h>
 
 #import "FBMoviePlayerViewController.h"
 #import "FBMoviePlayer.h"
