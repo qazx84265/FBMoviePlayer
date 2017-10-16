@@ -9,5 +9,5 @@
 #import <UIKit/UIKit.h>
 
 @interface FBMoviePlayerViewController : UIViewController
-
++ (instancetype)moviePlayerWithMovie:(NSString*)moviePath;
 @end

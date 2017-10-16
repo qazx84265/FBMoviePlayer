@@ -14,11 +14,11 @@
 #import "FBAudioManager.h"
 
 //-- ffmpeg headers
-#import "avcodec.h"
-#import "avutil.h"
-#import "avformat.h"
-#import "swscale.h"
-#import "swresample.h"
+#import "libavcodec/avcodec.h"
+#import "libavutil/avutil.h"
+#import "libavformat/avformat.h"
+#import "libswscale/swscale.h"
+#import "libswresample/swresample.h"
 
 #pragma mark -- static global
 static void avStreamFPSTimeBase(AVStream *st, CGFloat defaultTimeBase, CGFloat *pFPS, CGFloat *pTimeBase)
@@ -79,119 +79,6 @@ static BOOL audioCodecIsSupported(AVCodecContext *audio)
     return NO;
 }
 
-#pragma mark -- frames
-@interface KxMovieFrame()
-@property (readwrite, nonatomic) CGFloat position;
-@property (readwrite, nonatomic) CGFloat duration;
-@end
-
-@implementation KxMovieFrame
-@end
-
-@interface KxAudioFrame()
-@property (readwrite, nonatomic, strong) NSData *samples;
-@end
-
-@implementation KxAudioFrame
-- (KxMovieFrameType) type { return KxMovieFrameTypeAudio; }
-@end
-
-@interface KxVideoFrame()
-@property (readwrite, nonatomic) NSUInteger width;
-@property (readwrite, nonatomic) NSUInteger height;
-@end
-
-@implementation KxVideoFrame
-- (KxMovieFrameType) type { return KxMovieFrameTypeVideo; }
-@end
-
-@interface KxVideoFrameRGB ()
-@property (readwrite, nonatomic) NSUInteger linesize;
-@property (readwrite, nonatomic, strong) NSData *rgb;
-@end
-
-@implementation KxVideoFrameRGB
-- (KxVideoFrameFormat) format { return KxVideoFrameFormatRGB; }
-- (UIImage *) asImage
-{
-    UIImage *image = nil;
-    
-    CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)(_rgb));
-    if (provider) {
-        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-        if (colorSpace) {
-            CGImageRef imageRef = CGImageCreate(self.width,
-                                                self.height,
-                                                8,
-                                                24,
-                                                self.linesize,
-                                                colorSpace,
-                                                kCGBitmapByteOrderDefault,
-                                                provider,
-                                                NULL,
-                                                YES, // NO
-                                                kCGRenderingIntentDefault);
-            
-            if (imageRef) {
-                image = [UIImage imageWithCGImage:imageRef];
-                CGImageRelease(imageRef);
-            }
-            CGColorSpaceRelease(colorSpace);
-        }
-        CGDataProviderRelease(provider);
-    }
-    
-    return image;
-}
-@end
-
-@interface KxVideoFrameYUV()
-@property (readwrite, nonatomic, strong) NSData *luma;
-@property (readwrite, nonatomic, strong) NSData *chromaB;
-@property (readwrite, nonatomic, strong) NSData *chromaR;
-@end
-
-@implementation KxVideoFrameYUV
-- (KxVideoFrameFormat) format { return KxVideoFrameFormatYUV; }
-@end
-
-@interface KxArtworkFrame()
-@property (readwrite, nonatomic, strong) NSData *picture;
-@end
-
-@implementation KxArtworkFrame
-- (KxMovieFrameType) type { return KxMovieFrameTypeArtwork; }
-- (UIImage *) asImage
-{
-    UIImage *image = nil;
-    
-    CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)(_picture));
-    if (provider) {
-        
-        CGImageRef imageRef = CGImageCreateWithJPEGDataProvider(provider,
-                                                                NULL,
-                                                                YES,
-                                                                kCGRenderingIntentDefault);
-        if (imageRef) {
-            
-            image = [UIImage imageWithCGImage:imageRef];
-            CGImageRelease(imageRef);
-        }
-        CGDataProviderRelease(provider);
-    }
-    
-    return image;
-    
-}
-@end
-
-@interface KxSubtitleFrame()
-@property (readwrite, nonatomic, strong) NSString *text;
-@end
-
-@implementation KxSubtitleFrame
-- (KxMovieFrameType) type { return KxMovieFrameTypeSubtitle; }
-@end
 
 
 #pragma mark -- decoder
@@ -201,29 +88,27 @@ static BOOL audioCodecIsSupported(AVCodecContext *audio)
     AVFormatContext     *_formatCtx;
     AVCodecContext      *_videoCodecCtx;
     AVCodecContext      *_audioCodecCtx;
-    AVCodecContext      *_subtitleCodecCtx;
     
     AVFrame             *_videoFrame;
     AVFrame             *_audioFrame;
     
     NSInteger           _videoStreamIndex;
     NSInteger           _audioStreamIndex;
-    NSInteger           _subtitleStreamIndex;
     
+    CGFloat             _videoTimeBase;
+    CGFloat             _audioTimeBase;
+    
+    // audio resamle
     AVPicture           _picture;
     BOOL                _pictureValid;
     struct SwsContext   *_swsContext;
-    CGFloat             _videoTimeBase;
-    CGFloat             _audioTimeBase;
-    CGFloat             _position;
-    NSArray             *_videoStreams;
-    NSArray             *_audioStreams;
-    NSArray             *_subtitleStreams;
     SwrContext          *_swrContext;
     void                *_swrBuffer;
     NSUInteger          _swrBufferSize;
-    NSDictionary        *_info;
-    KxVideoFrameFormat  _videoFrameFormat;
+    
+    FBVideoFrameFormat  _videoFrameFormat;
+    
+    CGFloat             _position;
     
     double _fps;
 }
@@ -422,7 +307,7 @@ openErr:
         return NO;
     }
     
-    avStreamFPSTimeBase(aStream, 0.025, &_fps, &_audioTimeBase);
+    avStreamFPSTimeBase(aStream, 0.025, 0, &_audioTimeBase);
     
     return YES;
 }
@@ -431,7 +316,7 @@ openErr:
     return YES;
 }
 
-- (NSArray<KxMovieFrame*>*)decodeFramesWithDuration:(CGFloat)duration {
+- (NSArray<FBMovieFrame*>*)decodeFramesWithDuration:(CGFloat)duration {
     // no video && audio stream found
     if (!_formatCtx) {
         return nil;
@@ -476,7 +361,7 @@ openErr:
 //                }
                 
                 if (gotframe) {
-                    KxVideoFrame *frame = [self handleVideoFrame];
+                    FBVideoFrame *frame = [self handleVideoFrame];
                     if (frame) {
                         [frames addObject:frame];
                         
@@ -511,7 +396,7 @@ openErr:
                 }
                 
                 if (gotframe) {
-                    KxAudioFrame *frame = [self handleAudioFrame];
+                    FBAudioFrame *frame = [self handleAudioFrame];
                     if (frame) {
                         [frames addObject:frame];
                         
@@ -534,38 +419,6 @@ openErr:
                 pktSize -= len;
             } // while pktsize
         }
-        // subtitle
-//        else if (_subtitleStreamIndex == packet.stream_index) {
-//            int pktSize = packet.size;
-//
-//            while (pktSize > 0) {
-//                AVSubtitle subtitle;
-//                int gotsubtitle = 0;
-//                int len = avcodec_decode_subtitle2(_subtitleCodecCtx,
-//                                                   &subtitle,
-//                                                   &gotsubtitle,
-//                                                   &packet);
-//
-//                if (len < 0) {
-//                    NSLog(@"----->>>>>>>decode subtitle error, skip packet");
-//                    break;
-//                }
-//
-//                if (gotsubtitle) {
-//
-//                    KxSubtitleFrame *frame = [self handleSubtitle: &subtitle];
-//                    if (frame) {
-//                        [frames addObject:frame];
-//                    }
-//                    avsubtitle_free(&subtitle);
-//                }
-//
-//                if (0 == len)
-//                    break;
-//
-//                pktSize -= len;
-//            }
-//        }
     }//while
     
     return [NSArray arrayWithArray:frames];
@@ -657,16 +510,16 @@ openErr:
     return frameFinished != 0;
 }
 
-- (KxVideoFrame *) handleVideoFrame {
+- (FBVideoFrame *) handleVideoFrame {
     
     if (!_videoFrame->data[0])
         return nil;
     
-    KxVideoFrame *frame;
+    FBVideoFrame *frame;
     
-    if (_videoFrameFormat == KxVideoFrameFormatYUV) {
+    if (_videoFrameFormat == FBVideoFrameFormatYUV) {
         
-        KxVideoFrameYUV * yuvFrame = [[KxVideoFrameYUV alloc] init];
+        FBVideoFrameYUV * yuvFrame = [[FBVideoFrameYUV alloc] init];
         
         yuvFrame.luma = copyFrameData(_videoFrame->data[0],
                                       _videoFrame->linesize[0],
@@ -703,7 +556,7 @@ openErr:
                   _picture.linesize);
         
         
-        KxVideoFrameRGB *rgbFrame = [[KxVideoFrameRGB alloc] init];
+        FBVideoFrameRGB *rgbFrame = [[FBVideoFrameRGB alloc] init];
         
         rgbFrame.linesize = _picture.linesize[0];
         rgbFrame.rgb = [NSData dataWithBytes:_picture.data[0]
@@ -736,7 +589,7 @@ openErr:
     return frame;
 }
 
-- (KxAudioFrame *) handleAudioFrame {
+- (FBAudioFrame *) handleAudioFrame {
     
     if (!_audioFrame->data[0])
         return nil;
@@ -795,7 +648,7 @@ openErr:
     vDSP_vflt16((SInt16 *)audioData, 1, data.mutableBytes, 1, numElements);
     vDSP_vsmul(data.mutableBytes, 1, &scale, data.mutableBytes, 1, numElements);
     
-    KxAudioFrame *frame = [[KxAudioFrame alloc] init];
+    FBAudioFrame *frame = [[FBAudioFrame alloc] init];
     frame.position = av_frame_get_best_effort_timestamp(_audioFrame) * _audioTimeBase;
     frame.duration = av_frame_get_pkt_duration(_audioFrame) * _audioTimeBase;
     frame.samples = data;
@@ -865,16 +718,16 @@ openErr:
 //    return frame;
 //}
 
-- (BOOL) setupVideoFrameFormat: (KxVideoFrameFormat) format {
-    if (format == KxVideoFrameFormatYUV &&
+- (BOOL) setupVideoFrameFormat: (FBVideoFrameFormat) format {
+    if (format == FBVideoFrameFormatYUV &&
         _videoCodecCtx &&
         (_videoCodecCtx->pix_fmt == AV_PIX_FMT_YUV420P || _videoCodecCtx->pix_fmt == AV_PIX_FMT_YUVJ420P)) {
         
-        _videoFrameFormat = KxVideoFrameFormatYUV;
+        _videoFrameFormat = FBVideoFrameFormatYUV;
         return YES;
     }
     
-    _videoFrameFormat = KxVideoFrameFormatRGB;
+    _videoFrameFormat = FBVideoFrameFormatRGB;
     return _videoFrameFormat == format;
 }
 
@@ -901,16 +754,19 @@ openErr:
 }
 
 - (void)setPosition:(CGFloat)position {
+    
+    NSLog(@"-------->>>>>>>>>> seek to : %f", position);
+    
     _position = position;
     _isEOF = NO;
     
-    if (-1 != _videoStreamIndex) {
+    if (_videoStreamIndex >= 0) {
         int64_t ts = (int64_t)(_position / _videoTimeBase);
         avformat_seek_file(_formatCtx, (int)_videoStreamIndex, ts, ts, ts, AVSEEK_FLAG_FRAME);
         avcodec_flush_buffers(_videoCodecCtx);
     }
     
-    if (-1 != _audioStreamIndex) {
+    if (_audioStreamIndex >= 0) {
         int64_t ts = (int64_t)(_position / _audioTimeBase);
         avformat_seek_file(_formatCtx, (int)_audioStreamIndex, ts, ts, ts, AVSEEK_FLAG_FRAME);
         avcodec_flush_buffers(_audioCodecCtx);
@@ -957,20 +813,9 @@ openErr:
     return _audioStreamIndex >= 0;
 }
 
-- (BOOL)hasSubtitle {
-    return -1 != _subtitleStreamIndex;
-}
-
-- (KxVideoFrameFormat)videoFrameFormat {
+- (FBVideoFrameFormat)videoFrameFormat {
     return _videoFrameFormat;
 }
 
-
-
-- (KxVideoFrame*)currentVideoFrame {
-    
-    return [self handleVideoFrame];
-    
-}
 
 @end

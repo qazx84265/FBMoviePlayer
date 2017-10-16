@@ -12,10 +12,17 @@
 #import "FBMovieDecoder.h"
 #import "FBAudioManager.h"
 
+#import "FBMovieDefs.h"
+
+
 #define LOCAL_MIN_BUFFERED_DURATION   0.2
 #define LOCAL_MAX_BUFFERED_DURATION   0.4
 #define NETWORK_MIN_BUFFERED_DURATION 2.0
 #define NETWORK_MAX_BUFFERED_DURATION 4.0
+
+NSString* const kMoviePlayerDidCompletedNotification = @"play.end.noti";
+NSString* const kMoviePlayerBeginBuffNotification = @"buff.begin.noti";
+NSString* const kMoviePlayerEndBuffNotification = @"buff.end.noti";
 
 
 @interface FBMoviePlayer() {
@@ -50,7 +57,10 @@
     
     BOOL _isPlaying;
 }
-@property (nonatomic, copy, readwrite) NSString* moviePath;
+@property (nonatomic, copy, readwrite) NSString *moviePath;
+@property (nonatomic, assign, readwrite) CGFloat movieDuration;
+@property (nonatomic, assign, readwrite) CGFloat playedPosition;
+@property (nonatomic, assign, readwrite) CGFloat playingProgress;
 @end
 
 
@@ -77,6 +87,7 @@
     
     self.audioEnabled = YES;
     _moviePosition = 0;
+    
     _decodeQueue  = dispatch_queue_create("movie.player", DISPATCH_QUEUE_SERIAL);
     _videoFrames    = [NSMutableArray array];
     _audioFrames    = [NSMutableArray array];
@@ -108,7 +119,7 @@
 }
 
 - (void)setPresentView {
-    CGRect rect = [UIApplication sharedApplication].keyWindow.bounds;
+    CGRect rect = kKeyWindow.bounds;
     
     if (_decoder.hasVideo) {
         _glView = [[FBMoviePlayerView alloc] initWithFrame:rect decoder:_decoder];
@@ -117,7 +128,7 @@
     
     if (!_glView) {
         NSLog(@"------->>>>>>>>>>> use UIKit && RGB to render video frame");
-        [_decoder setupVideoFrameFormat:KxVideoFrameFormatRGB];
+        [_decoder setupVideoFrameFormat:FBVideoFrameFormatRGB];
         _imageView = [[UIImageView alloc] initWithFrame:rect];
         _imageView.backgroundColor = [UIColor blackColor];
         _imageView.contentMode = UIViewContentModeCenter;
@@ -148,21 +159,6 @@
     return _moviePath;
 }
 
-- (CGFloat)movieDuration {
-    return _decoder.duration;
-}
-
-- (CGFloat)playedPosition {
-    return _moviePosition - _decoder.startTime;
-}
-
-- (CGFloat)playingProgress {
-    if (0.0 == _decoder.duration) {
-        return 0.0;
-    }
-    
-    return (_moviePosition - _decoder.startTime) / _decoder.duration;
-}
 
 #pragma mark -- public
 
@@ -233,39 +229,41 @@
     
     [self enableAudio:NO];
     
-    [self updatePosition:position playMode:playMode];
+    dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, 0.1 * NSEC_PER_SEC);
+    dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+        [self updatePosition:position playMode:playMode];
+    });
 }
 
 - (void)updatePosition:(CGFloat)position playMode:(BOOL)playMode {
+    
     
     [self freeBufferedFrames];
     
     position = MIN(_decoder.duration - 1, MAX(0, position));
     
-    __weak __typeof(self) weakSelf = self;
+    weakify(self)
     dispatch_async(_decodeQueue, ^{
         
         if (playMode) {
-            __strong __typeof(weakSelf) strongSelf = weakSelf;
-            if (!strongSelf) return;
-            [strongSelf setDecoderPosition: position];
+            strongify(self)
+            [self setDecoderPosition:position];
             
-            [strongSelf setMoviePositionFromDecoder];
-            [strongSelf play];
+            fbmovie_gcd_main_async_safe(^{
+                strongify(self)
+                [self setMoviePositionFromDecoder];
+                [self play];
+            })
             
         } else {
-        
-            __strong __typeof(weakSelf) strongSelf = weakSelf;
-            if (!strongSelf) return;
-            [strongSelf setDecoderPosition:position];
-            [strongSelf decodeFrames];
+            strongify(self)
+            [self setDecoderPosition:position];
+            [self decodeFrames];
             
-            dispatch_async(dispatch_get_main_queue(), ^{
-                __strong __typeof(weakSelf) strongSelf = weakSelf;
-                if (strongSelf) {
-                    [strongSelf setMoviePositionFromDecoder];
-                    [strongSelf presentFrame];
-                }
+            fbmovie_gcd_main_async_safe(^{
+                strongify(self)
+                [self setMoviePositionFromDecoder];
+                [self presentFrame];
             });
         }
     });
@@ -283,11 +281,11 @@
         _currentAudioFrame = nil;
     }
     
-    if (_subtitles) {
-        @synchronized(_subtitles) {
-            [_subtitles removeAllObjects];
-        }
-    }
+//    if (_subtitles) {
+//        @synchronized(_subtitles) {
+//            [_subtitles removeAllObjects];
+//        }
+//    }
     
     _bufferedDuration = 0;
 }
@@ -297,8 +295,8 @@
 - (BOOL) addFrames: (NSArray *)frames {
     if (_decoder.hasVideo) {
         @synchronized(_videoFrames) {
-            for (KxMovieFrame *frame in frames) {
-                if (frame.type == KxMovieFrameTypeVideo) {
+            for (FBMovieFrame *frame in frames) {
+                if (frame.type == FBMovieFrameTypeVideo) {
                     [_videoFrames addObject:frame];
                     _bufferedDuration += frame.duration;
                 }
@@ -308,8 +306,8 @@
     
     if (_decoder.hasAudio) {
         @synchronized(_audioFrames) {
-            for (KxMovieFrame *frame in frames) {
-                if (frame.type == KxMovieFrameTypeAudio) {
+            for (FBMovieFrame *frame in frames) {
+                if (frame.type == FBMovieFrameTypeAudio) {
                     [_audioFrames addObject:frame];
                     if (!_decoder.hasVideo)
                         _bufferedDuration += frame.duration;
@@ -318,8 +316,8 @@
         }
         
 //        if (!_decoder.hasVideo) {
-//            for (KxMovieFrame *frame in frames) {
-//                if (frame.type == KxMovieFrameTypeArtwork) {
+//            for (FBMovieFrame *frame in frames) {
+//                if (frame.type == FBMovieFrameTypeArtwork) {
 //                    self.artworkFrame = (KxArtworkFrame *)frame;
 //                }
 //            }
@@ -328,8 +326,8 @@
     
 //    if (_decoder.validSubtitles) {
 //        @synchronized(_subtitles) {
-//            for (KxMovieFrame *frame in frames) {
-//                if (frame.type == KxMovieFrameTypeSubtitle) {
+//            for (FBMovieFrame *frame in frames) {
+//                if (frame.type == FBMovieFrameTypeSubtitle) {
 //                    [_subtitles addObject:frame];
 //                }
 //            }
@@ -399,6 +397,8 @@
         
         _tickCorrectionTime = 0;
         _isBuffering = NO;
+        
+        [self endBuff];
     }
     
     CGFloat interval = 0;
@@ -414,6 +414,8 @@
         if (0 == leftFrames) {
             if (_decoder.isEOF) {
                 [self pause];
+                [self updatePlayingStatus];
+                [self playCompleted];
                 
                 return;
             }
@@ -421,6 +423,7 @@
             if (_minBufferedDuration > 0 && !_isBuffering) {
                 
                 _isBuffering = YES;
+                [self beginBuff];
             }
         }
         
@@ -438,6 +441,9 @@
         });
     }
     
+    if ((_tickCounter++ % 3) == 0) {
+        [self updatePlayingStatus];
+    }
 }
 
 - (CGFloat) tickCorrection {
@@ -468,13 +474,45 @@
     return correction;
 }
 
+- (void)updatePlayingStatus {
+    self.playedPosition = _moviePosition - _decoder.startTime;
+    CGFloat duration = _decoder.duration;
+    
+    if (duration > 0 && duration != MAXFLOAT) {
+        self.movieDuration = duration;
+        //self.playingProgress = self.playedPosition / self.movieDuration;
+    }
+}
+
+- (void)playCompleted {
+    _decoder.position = 0;
+    
+    [[NSNotificationCenter defaultCenter] postNotificationName:kMoviePlayerDidCompletedNotification object:nil];
+    
+    if (self.completedHandler) {
+        self.completedHandler();
+    }
+    
+    if (self.delegate && [self.delegate respondsToSelector:@selector(moviePlayerDidCompleted:)]) {
+        [self.delegate moviePlayerDidCompleted:self];
+    }
+}
+
+- (void)beginBuff {
+    [[NSNotificationCenter defaultCenter] postNotificationName:kMoviePlayerBeginBuffNotification object:nil];
+}
+
+- (void)endBuff {
+    [[NSNotificationCenter defaultCenter] postNotificationName:kMoviePlayerEndBuffNotification object:nil];
+}
+
 - (CGFloat) presentFrame {
     
     CGFloat interval = 0;
     
     if (_decoder.hasVideo) {
         
-        KxVideoFrame *frame;
+        FBVideoFrame *frame;
         
         @synchronized(_videoFrames) {
             
@@ -506,13 +544,13 @@
     return interval;
 }
 
-- (CGFloat) presentVideoFrame: (KxVideoFrame *) frame {
+- (CGFloat) presentVideoFrame: (FBVideoFrame *) frame {
     
     if (_glView) {
         [_glView displayMovieFrame:frame];
         
     } else {
-        KxVideoFrameRGB *rgbFrame = (KxVideoFrameRGB *)frame;
+        FBVideoFrameRGB *rgbFrame = (FBVideoFrameRGB *)frame;
         _imageView.image = [rgbFrame asImage];
     }
     
@@ -545,7 +583,7 @@
                     
                     if (count > 0) {
                         
-                        KxAudioFrame *frame = _audioFrames[0];
+                        FBAudioFrame *frame = _audioFrames[0];
 
                         if (_decoder.hasVideo) {
                             

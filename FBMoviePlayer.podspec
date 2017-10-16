@@ -120,7 +120,7 @@ s.source_files  = "FBMoviePlayer/**/*.{h,m}"
   # s.framework  = "SomeFramework"
   s.frameworks = "Foundation", "UIKit", "AVFoundation", "Accelerate", "OpenGLES", "CoreMedia","MediaPlayer"
 
-   s.library   = "z","stdc++"
+   s.library   = "stdc++"
   # s.libraries = "iconv", "xml2"
 
 
@@ -132,7 +132,7 @@ s.source_files  = "FBMoviePlayer/**/*.{h,m}"
 
   # s.requires_arc = true
 
-  # s.xcconfig = { "HEADER_SEARCH_PATHS" => "$(SDKROOT)/usr/include" }
+  s.xcconfig = { "HEADER_SEARCH_PATHS" => "$(SDKROOT)/FFmpeg/include", "LIBRARY_SEARCH_PATHS" => "$(SDKROOT)/FFmpeg/lib" }
   s.dependency "Masonry", "~> 1.0.2"
 
 end

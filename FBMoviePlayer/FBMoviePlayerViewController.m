@@ -6,20 +6,19 @@
 //  Copyright © 2017年 FB. All rights reserved.
 //
 
-#import <Masonry/Masonry.h>
 #import <MediaPlayer/MediaPlayer.h>
 
 #import "FBMoviePlayerViewController.h"
-
-#import "FBMovieDecoder.h"
-#import "FBMoviePlayerView.h"
-
 #import "FBMoviePlayer.h"
+#import "FBMovieDefs.h"
+
 
 typedef NS_ENUM(NSInteger, PanDirection){
     PanDirectionHorizontalMoved, // 横向移动
     PanDirectionVerticalMoved    // 纵向移动
 };
+
+static void* kvo_player_ctx = &kvo_player_ctx;
 
 static NSString * formatTimeInterval(CGFloat seconds) {
     seconds = MAX(0, seconds);
@@ -42,9 +41,16 @@ static NSString * formatTimeInterval(CGFloat seconds) {
     return format;
 }
 
-@interface FBMoviePlayerViewController ()
-@property (nonatomic, strong) FBMovieDecoder *decoder;
-@property (nonatomic, strong) FBMoviePlayerView *preview;
+
+
+
+
+@interface FBMoviePlayerViewController () {
+    CGFloat _lastPostion;
+    CGFloat _lastProgress;
+    
+    NSString *_moviePath;
+}
 
 @property (nonatomic, strong) FBMoviePlayer *player;
 
@@ -68,8 +74,10 @@ static NSString * formatTimeInterval(CGFloat seconds) {
 // 系统音量slider
 @property (nonatomic, strong) UISlider *volumeViewSlider;
 
-@property (nonatomic, strong)UITapGestureRecognizer *tapGestureRecognizer;
-@property (nonatomic, strong)UIPanGestureRecognizer *panGestureRecognizer;
+@property (nonatomic, strong) UIActivityIndicatorView *activityIndicatorView;
+
+@property (nonatomic, strong) UITapGestureRecognizer *tapGestureRecognizer;
+@property (nonatomic, strong) UIPanGestureRecognizer *panGestureRecognizer;
 
 
 /** 用来保存手势滑动快进的总时长 */
@@ -85,6 +93,18 @@ static NSString * formatTimeInterval(CGFloat seconds) {
 
 @implementation FBMoviePlayerViewController
 
++ (instancetype)moviePlayerWithMovie:(NSString *)moviePath {
+    return [[FBMoviePlayerViewController alloc] initWithMovie:moviePath];
+}
+
+- (instancetype)initWithMovie:(NSString *)moviePath {
+    if (self = [super init]) {
+        _moviePath = moviePath;
+    }
+    
+    return self;
+}
+
 #pragma mark -- ui
 - (UIStatusBarStyle)preferredStatusBarStyle {
     return UIStatusBarStyleLightContent;
@@ -96,6 +116,14 @@ static NSString * formatTimeInterval(CGFloat seconds) {
 //    if (self.player && !self.player.isPlaying) {
 //        [self.player play];
 //    }
+    
+//    [self.activityIndicatorView startAnimating];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    
+//    [self.activityIndicatorView stopAnimating];
 }
 
 - (void)viewDidLoad {
@@ -103,14 +131,14 @@ static NSString * formatTimeInterval(CGFloat seconds) {
     self.view.backgroundColor = [UIColor blackColor];
     // Do any additional setup after loading the view.
     
+    _lastPostion = 0;
+    _lastProgress = 0;
+    
+    
     [self setUI];
     
     [self setPlayer];
-    
-    [self addNotis];
-    
-    [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(updateTime:) userInfo:nil repeats:YES];
-    
+        
     
     //NSLog(@"------>>>>>>>>>> view size : %@", NSStringFromCGSize(self.player.playerView.size));
 }
@@ -140,6 +168,7 @@ static NSString * formatTimeInterval(CGFloat seconds) {
     self.playTimeLabel.textColor = [UIColor whiteColor];
     self.playTimeLabel.backgroundColor = [UIColor clearColor];
     self.playTimeLabel.font = [UIFont systemFontOfSize:11.0];
+    self.playTimeLabel.text = @"00:00";
     [self.bottomHUD.contentView addSubview:self.playTimeLabel];
     
     self.durationTimeLabel = [[UILabel alloc] init];
@@ -154,6 +183,7 @@ static NSString * formatTimeInterval(CGFloat seconds) {
     [self.bottomHUD.contentView addSubview:self.playProcessView];
     
     self.playSlider = [[UISlider alloc] init];
+    self.playSlider.continuous = NO;
     self.playSlider.minimumTrackTintColor = [UIColor whiteColor];
     self.playSlider.maximumTrackTintColor = [UIColor clearColor];
     [self.playSlider setThumbImage:[UIImage imageWithColor:[UIColor whiteColor] size:CGSizeMake(10, 10)] forState:UIControlStateNormal];
@@ -183,6 +213,10 @@ static NSString * formatTimeInterval(CGFloat seconds) {
     self.fullScreenButton.backgroundColor = [UIColor clearColor];
     [self.fullScreenButton addTarget:self action:@selector(fullScreen:) forControlEvents:UIControlEventTouchUpInside];
     [self.bottomHUD.contentView addSubview:self.fullScreenButton];
+    
+    self.activityIndicatorView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle: UIActivityIndicatorViewStyleWhiteLarge];
+    self.activityIndicatorView.center = self.view.center;
+    [self.view addSubview:self.activityIndicatorView];
     
     //-- set constraits
     [self.topLeftHUD mas_makeConstraints:^(MASConstraintMaker *make) {
@@ -281,10 +315,9 @@ static NSString * formatTimeInterval(CGFloat seconds) {
 }
 
 - (void)setPlayer {
+    NSAssert(_moviePath, @"movie path should not be nil");
     
-    NSString* path = @"http://sc1.111ttt.com/2017/1/05/09/298092036393.mp3";//@"rtmp://live.hkstv.hk.lxdns.com/live/hks";//[[NSBundle mainBundle] pathForResource:@"test" ofType:@"mp4"];//
-    
-    self.player = [FBMoviePlayer playerWithMovie:path];
+    self.player = [FBMoviePlayer playerWithMovie:_moviePath];
     [self.view insertSubview:self.player.playerView atIndex:0];
     [self.player.playerView mas_makeConstraints:^(MASConstraintMaker *make) {
         make.left.right.top.bottom.equalTo(self.view);
@@ -292,6 +325,8 @@ static NSString * formatTimeInterval(CGFloat seconds) {
     
     //
     [self setupUserInteraction];
+    
+    [self addNotis];
 }
 
 - (void) setupUserInteraction {
@@ -396,26 +431,14 @@ static NSString * formatTimeInterval(CGFloat seconds) {
 
 
 
-#pragma mark -- timer
-- (void)updateTime:(NSTimer*)timer {
-    CGFloat position = self.player.playedPosition;
-    CGFloat duration = self.player.movieDuration;
-    
-    self.playTimeLabel.text = formatTimeInterval(position);
-    
-    if (duration > 0 && duration != MAXFLOAT) {
-        self.durationTimeLabel.text = formatTimeInterval(duration - position);
-        self.playSlider.value = position / duration;
-    }
-//    else {
-//        self.durationTimeLabel.text = @"--:--";
-//    }
-}
-
-
 #pragma mark -- actions
 - (void)close:(UIButton*)sender {
-    
+    if (self.presentingViewController || !self.navigationController) {
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }
+    else {
+        [self.navigationController popViewControllerAnimated:YES];
+    }
 }
 
 - (void)play:(UIButton*)sender {
@@ -430,10 +453,22 @@ static NSString * formatTimeInterval(CGFloat seconds) {
 }
 
 - (void)rewind:(UIButton*)sender {
+    if (!self.player.isPlaying ||
+        self.player.movieDuration == 0 ||
+        self.player.movieDuration == MAXFLOAT) {
+        return;
+    }
+    
     [self.player setMoviePosition:self.player.playedPosition - 5];
 }
 
 - (void)forward:(UIButton*)sender {
+    if (!self.player.isPlaying ||
+        self.player.movieDuration == 0 ||
+        self.player.movieDuration == MAXFLOAT) {
+        return;
+    }
+    
     [self.player setMoviePosition:self.player.playedPosition + 5];
 }
 
@@ -458,20 +493,122 @@ static NSString * formatTimeInterval(CGFloat seconds) {
 #pragma mark -- noti
 - (void)addNotis {
     [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(playComplete:) name:kMoviePlayerDidCompletedNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(beginToBuff:) name:kMoviePlayerBeginBuffNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(endToBuff:) name:kMoviePlayerEndBuffNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(applicationWillResignActive:)
                                                  name:UIApplicationWillResignActiveNotification
                                                object:[UIApplication sharedApplication]];
+    
+    [self.player addObserver:self forKeyPath:@"playedPosition" options:NSKeyValueObservingOptionNew context:kvo_player_ctx];
+    [self.player addObserver:self forKeyPath:@"movieDuration" options:NSKeyValueObservingOptionNew context:kvo_player_ctx];
+//    [self.player addObserver:self forKeyPath:@"playingProgress" options:NSKeyValueObservingOptionNew context:kvo_player_ctx];
 }
 
 - (void)removeNotis {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+    
+    [self.player removeObserver:self forKeyPath:@"playedPosition"];
+    [self.player removeObserver:self forKeyPath:@"movieDuration"];
+//    [self.player removeObserver:self forKeyPath:@"playingProgress"];
 }
 
 - (void) applicationWillResignActive: (NSNotification *)notification {
     
-    [self.player pause];
-    
     NSLog(@"----->>>>>>>> applicationWillResignActive");
+    [self.player pause];
+}
+
+- (void)playComplete:(NSNotification*)notification {
+    NSLog(@"----->>>>>>>> playComplete");
+    
+    weakify(self)
+    fbmovie_gcd_main_async_safe(^{
+        strongify(self)
+        _lastProgress = 0;
+        _lastPostion = 0;
+        
+        [self updatePlayButton];
+        [self.activityIndicatorView stopAnimating];
+    })
+}
+
+- (void)beginToBuff:(NSNotification*)notification {
+    NSLog(@"----->>>>>>>> playComplete");
+    
+    weakify(self)
+    fbmovie_gcd_main_async_safe(^{
+        strongify(self)
+        [self.activityIndicatorView startAnimating];
+    })
+}
+
+- (void)endToBuff:(NSNotification*)notification {
+    NSLog(@"----->>>>>>>> playComplete");
+    
+    weakify(self)
+    fbmovie_gcd_main_async_safe(^{
+        strongify(self)
+        [self.activityIndicatorView stopAnimating];
+    })
+}
+
+
+
+#pragma mark -- kvo
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
+    if (context == kvo_player_ctx) {
+        weakify(self)
+        
+        if ([keyPath isEqualToString:@"playingProgress"]) {
+            CGFloat pro = [[change objectForKey:NSKeyValueChangeNewKey] floatValue];
+            if ((pro - _lastProgress) >= 0.01) {
+                fbmovie_gcd_main_async_safe(^{
+                    strongify(self)
+                    self.playSlider.value = pro;
+                    _lastProgress = pro;
+                })
+            }
+        }
+        else if ([keyPath isEqualToString:@"movieDuration"]) {
+            CGFloat dur = [[change objectForKey:NSKeyValueChangeNewKey] floatValue];
+            //NSLog(@"--------->>>>>>>>>>> %f", pos);
+            if (dur >0 && dur != MAXFLOAT) {
+                fbmovie_gcd_main_async_safe(^{
+                    strongify(self)
+                    self.durationTimeLabel.text = formatTimeInterval(dur);
+                })
+            }
+        }
+        else if ([keyPath isEqualToString:@"playedPosition"]) {
+            CGFloat pos = [[change objectForKey:NSKeyValueChangeNewKey] floatValue];
+            //NSLog(@"--------->>>>>>>>>>> %f", pos);
+            if ((pos - _lastPostion) >= 1.0) {
+                fbmovie_gcd_main_async_safe(^{
+                    strongify(self)
+                    self.playTimeLabel.text = formatTimeInterval(pos);
+                    _lastPostion = pos;
+                })
+            }
+            
+            if (self.player.movieDuration > 0 && self.player.movieDuration != MAXFLOAT) {
+                CGFloat pro = pos / self.player.movieDuration;
+                if (pro - _lastProgress >= 0.01) {
+                    fbmovie_gcd_main_async_safe(^{
+                        strongify(self)
+                        self.playSlider.value = pro;
+                        _lastProgress = pro;
+                    })
+                }
+            }
+        }
+    }
+    else {
+        [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+    }
 }
 
 

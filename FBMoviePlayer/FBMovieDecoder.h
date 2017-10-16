@@ -8,60 +8,10 @@
 
 #import <Foundation/Foundation.h>
 
-typedef enum {
-    
-    KxMovieFrameTypeAudio,
-    KxMovieFrameTypeVideo,
-    KxMovieFrameTypeArtwork,
-    KxMovieFrameTypeSubtitle,
-    
-} KxMovieFrameType;
-
-typedef enum {
-    
-    KxVideoFrameFormatRGB,
-    KxVideoFrameFormatYUV,
-    
-} KxVideoFrameFormat;
-
-@interface KxMovieFrame : NSObject
-@property (readonly, nonatomic) KxMovieFrameType type;
-@property (readonly, nonatomic) CGFloat position;
-@property (readonly, nonatomic) CGFloat duration;
-@end
-
-@interface KxAudioFrame : KxMovieFrame
-@property (readonly, nonatomic, strong) NSData *samples;
-@end
-
-@interface KxVideoFrame : KxMovieFrame
-@property (readonly, nonatomic) KxVideoFrameFormat format;
-@property (readonly, nonatomic) NSUInteger width;
-@property (readonly, nonatomic) NSUInteger height;
-@end
-
-@interface KxVideoFrameRGB : KxVideoFrame
-@property (readonly, nonatomic) NSUInteger linesize;
-@property (readonly, nonatomic, strong) NSData *rgb;
-- (UIImage *) asImage;
-@end
-
-@interface KxVideoFrameYUV : KxVideoFrame
-@property (readonly, nonatomic, strong) NSData *luma;
-@property (readonly, nonatomic, strong) NSData *chromaB;
-@property (readonly, nonatomic, strong) NSData *chromaR;
-@end
-
-@interface KxArtworkFrame : KxMovieFrame
-@property (readonly, nonatomic, strong) NSData *picture;
-- (UIImage *) asImage;
-@end
-
-@interface KxSubtitleFrame : KxMovieFrame
-@property (readonly, nonatomic, strong) NSString *text;
-@end
+#import "FBMovieFrame.h"
 
 
+#pragma mark -- FBMovieDecoder
 @interface FBMovieDecoder : NSObject
 
 @property (nonatomic, copy, readonly) NSString* moviePath;
@@ -87,9 +37,9 @@ typedef enum {
 @property (nonatomic, assign, readonly) BOOL hasAudio;
 @property (nonatomic, assign, readonly) BOOL hasSubtitle;
 
-@property (nonatomic, assign, readonly) KxVideoFrameFormat videoFrameFormat;
+@property (nonatomic, assign, readonly) FBVideoFrameFormat videoFrameFormat;
 
-@property (nonatomic, strong, readonly) KxVideoFrame* currentVideoFrame;
+@property (nonatomic, strong, readonly) FBVideoFrame* currentVideoFrame;
 
 
 - (instancetype)initWithMovie:(NSString*)moviePath;
@@ -99,9 +49,9 @@ typedef enum {
 
 - (BOOL)prepareForDecode;
 
-- (BOOL)setupVideoFrameFormat:(KxVideoFrameFormat)format;
+- (BOOL)setupVideoFrameFormat:(FBVideoFrameFormat)format;
 
-- (NSArray<KxMovieFrame*>*)decodeFramesWithDuration:(CGFloat)duration;
+- (NSArray<FBMovieFrame*>*)decodeFramesWithDuration:(CGFloat)duration;
 
-- (BOOL)stepFrame;
+
 @end

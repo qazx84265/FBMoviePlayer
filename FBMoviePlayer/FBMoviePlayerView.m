@@ -7,13 +7,13 @@
 //
 
 #import "FBMoviePlayerView.h"
+#import "FBMovieDecoder.h"
 
 #import <QuartzCore/QuartzCore.h>
 #import <OpenGLES/EAGLDrawable.h>
 #import <OpenGLES/EAGL.h>
 #import <OpenGLES/ES2/gl.h>
 #import <OpenGLES/ES2/glext.h>
-#import "FBMovieDecoder.h"
 
 //////////////////////////////////////////////////////////
 
@@ -165,7 +165,7 @@ static void mat4f_LoadOrtho(float left, float right, float bottom, float top, fl
 - (BOOL) isValid;
 - (NSString *) fragmentShader;
 - (void) resolveUniforms: (GLuint) program;
-- (void) setFrame: (KxVideoFrame *) frame;
+- (void) setFrame: (FBVideoFrame *) frame;
 - (BOOL) prepareRender;
 @end
 
@@ -193,9 +193,9 @@ static void mat4f_LoadOrtho(float left, float right, float bottom, float top, fl
     _uniformSampler = glGetUniformLocation(program, "s_texture");
 }
 
-- (void) setFrame: (KxVideoFrame *) frame
+- (void) setFrame: (FBVideoFrame *) frame
 {
-    KxVideoFrameRGB *rgbFrame = (KxVideoFrameRGB *)frame;
+    FBVideoFrameRGB *rgbFrame = (FBVideoFrameRGB *)frame;
     
     assert(rgbFrame.rgb.length == rgbFrame.width * rgbFrame.height * 3);
     
@@ -270,9 +270,9 @@ static void mat4f_LoadOrtho(float left, float right, float bottom, float top, fl
     _uniformSamplers[2] = glGetUniformLocation(program, "s_texture_v");
 }
 
-- (void) setFrame: (KxVideoFrame *) frame
+- (void) setFrame: (FBVideoFrame *) frame
 {
-    KxVideoFrameYUV *yuvFrame = (KxVideoFrameYUV *)frame;
+    FBVideoFrameYUV *yuvFrame = (FBVideoFrameYUV *)frame;
     
     assert(yuvFrame.luma.length == yuvFrame.width * yuvFrame.height);
     assert(yuvFrame.chromaB.length == (yuvFrame.width * yuvFrame.height) / 4);
@@ -370,7 +370,7 @@ enum {
         
         _decoder = decoder;
         
-        if ([decoder setupVideoFrameFormat:KxVideoFrameFormatYUV]) {
+        if ([decoder setupVideoFrameFormat:FBVideoFrameFormatYUV]) {
             
             _renderer = [[KxMovieGLRenderer_YUV alloc] init];
             NSLog(@"------->>>>>>>>>>> OK use YUV GL renderer");
@@ -574,7 +574,7 @@ exit:
     _vertices[7] =   h;
 }
 
-- (void)render: (KxVideoFrame *) frame
+- (void)render: (FBVideoFrame *) frame
 {
     if (!frame) {
         return;
@@ -625,7 +625,7 @@ exit:
     [_context presentRenderbuffer:GL_RENDERBUFFER];
 }
 
-- (void)displayMovieFrame:(KxVideoFrame *)frame {
+- (void)displayMovieFrame:(FBVideoFrame *)frame {
     [self render:frame];
 }
 

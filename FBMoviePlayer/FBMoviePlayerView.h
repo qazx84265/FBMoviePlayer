@@ -8,11 +8,11 @@
 
 #import <UIKit/UIKit.h>
 
-@class KxVideoFrame;
+@class FBVideoFrame;
 @class FBMovieDecoder;
 
 @interface FBMoviePlayerView : UIView
 - (instancetype)initWithFrame:(CGRect)frame decoder:(FBMovieDecoder*)decoder;
 
-- (void)displayMovieFrame:(KxVideoFrame*)frame;
+- (void)displayMovieFrame:(FBVideoFrame*)frame;
 @end
