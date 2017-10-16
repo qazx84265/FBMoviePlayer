@@ -65,10 +65,10 @@ Pod::Spec.new do |s|
   #
 
   # s.platform     = :ios
-  s.platform     = :ios, "8.0"
+  s.platform     = :ios, "9.0"
 
   #  When using multiple platforms
-  # s.ios.deployment_target = "5.0"
+  s.ios.deployment_target = "9.0"
   # s.osx.deployment_target = "10.7"
   # s.watchos.deployment_target = "2.0"
   # s.tvos.deployment_target = "9.0"
@@ -108,7 +108,8 @@ s.source_files  = "FBMoviePlayer/**/*.{h,m}"
   s.resource  = "FBMoviePlayer/**/*.bundle"
   # s.resources = "Resources/*.png"
 
-  # s.preserve_paths = "FilesToSave", "MoreFilesToSave"
+#s.preserve_paths = "FFmpeg/include/**/*.h"
+#s.vendored_libraries = "FFmpeg/lib/**/*.a"
 
 
   # ――― Project Linking ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
@@ -132,7 +133,9 @@ s.source_files  = "FBMoviePlayer/**/*.{h,m}"
 
   # s.requires_arc = true
 
-#s.xcconfig = { "HEADER_SEARCH_PATHS" => "FFmpeg/include", "LIBRARY_SEARCH_PATHS" => "FFmpeg/lib" }
-  s.dependency = 'Masonry'
+s.xcconfig = {
+"HEADER_SEARCH_PATHS" => "${SRCROOT}/FFmpeg/include",
+}
+  s.dependency 'Masonry'
 
 end
