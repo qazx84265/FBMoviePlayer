@@ -1,0 +1,24 @@
+//
+//  FBPrefix.pch
+//  ARSeek
+//
+//
+
+#ifndef FBPrefix_pch
+#define FBPrefix_pch
+
+#ifdef __OBJC__
+
+#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+#import <objc/runtime.h>
+
+
+//-- categ
+#import "UIImage+Color.h"
+
+#import "FBMacro.h"
+
+#endif //__OBJC__
+
+#endif /* FBPrefix_pch */

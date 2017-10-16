@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "FBMoviePlayer"
-  s.version      = "0.3.5"
+  s.version      = "0.3.6"
   s.summary      = "movie player for iOS"
 
   # This description is used to generate tags and improve search results.
@@ -118,7 +118,7 @@ s.source_files  = "FBMoviePlayer/**/*.{h,m}"
   #
 
   # s.framework  = "SomeFramework"
-  s.frameworks = "Foundation", "UIKit", "AVFoundation", "Accelerate", "OpenGLES", "CoreMedia"
+  s.frameworks = "Foundation", "UIKit", "AVFoundation", "Accelerate", "OpenGLES", "CoreMedia","MediaPlayer"
 
    s.library   = "z","stdc++"
   # s.libraries = "iconv", "xml2"
@@ -133,6 +133,6 @@ s.source_files  = "FBMoviePlayer/**/*.{h,m}"
   # s.requires_arc = true
 
   # s.xcconfig = { "HEADER_SEARCH_PATHS" => "$(SDKROOT)/usr/include" }
-  # s.dependency "JSONKit", "~> 1.4"
+  s.dependency "Masonry", "~> 1.0.2"
 
 end

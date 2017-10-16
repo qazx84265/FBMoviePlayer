@@ -108,7 +108,7 @@
 }
 
 - (void)setPresentView {
-    CGRect rect = kKeyWindow.bounds;
+    CGRect rect = [UIApplication sharedApplication].keyWindow.bounds;
     
     if (_decoder.hasVideo) {
         _glView = [[FBMoviePlayerView alloc] initWithFrame:rect decoder:_decoder];

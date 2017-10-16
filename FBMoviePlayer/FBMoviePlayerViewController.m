@@ -6,6 +6,7 @@
 //  Copyright © 2017年 FB. All rights reserved.
 //
 
+#import <Masonry/Masonry.h>
 #import <MediaPlayer/MediaPlayer.h>
 
 #import "FBMoviePlayerViewController.h"
