@@ -425,11 +425,19 @@ NSLog(@"-------->>>>>>>>>> %@", dump); \
         self.playAfterSessionEndInterruption = self.playing;
         [self pause];
     }
-    else {
-        if (self.playAfterSessionEndInterruption) {
-            self.playAfterSessionEndInterruption = NO;
-            [self play];
-        }
+    
+    if (type == AVAudioSessionInterruptionTypeEnded) {
+        NSNumber *seccondReason = [[notification userInfo] objectForKey:AVAudioSessionInterruptionOptionKey];
+        switch ([seccondReason integerValue]) {
+            case AVAudioSessionInterruptionOptionShouldResume:
+                if (self.playAfterSessionEndInterruption) {
+                    self.playAfterSessionEndInterruption = NO;
+                    [self play];
+                }
+                break;
+            default:
+                break;
+        
     }
 }
 
