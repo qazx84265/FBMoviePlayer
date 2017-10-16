@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "FBMoviePlayer"
-  s.version      = "0.3.6"
+  s.version      = "0.3.8"
   s.summary      = "movie player for iOS"
 
   # This description is used to generate tags and improve search results.

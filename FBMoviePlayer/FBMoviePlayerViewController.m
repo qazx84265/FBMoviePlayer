@@ -186,7 +186,7 @@ static NSString * formatTimeInterval(CGFloat seconds) {
     self.playSlider.continuous = NO;
     self.playSlider.minimumTrackTintColor = [UIColor whiteColor];
     self.playSlider.maximumTrackTintColor = [UIColor clearColor];
-    [self.playSlider setThumbImage:[UIImage imageWithColor:[UIColor whiteColor] size:CGSizeMake(10, 10)] forState:UIControlStateNormal];
+    //[self.playSlider setThumbImage:[UIImage imageWithColor:[UIColor whiteColor] size:CGSizeMake(10, 10)] forState:UIControlStateNormal];
     [self.playSlider addTarget:self action:@selector(progressChanged:) forControlEvents:UIControlEventValueChanged];
     [self.bottomHUD.contentView addSubview:self.playSlider];
     

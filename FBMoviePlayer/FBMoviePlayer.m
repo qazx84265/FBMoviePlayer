@@ -119,7 +119,7 @@ NSString* const kMoviePlayerEndBuffNotification = @"buff.end.noti";
 }
 
 - (void)setPresentView {
-    CGRect rect = kKeyWindow.bounds;
+    CGRect rect = [UIApplication sharedApplication].bounds;
     
     if (_decoder.hasVideo) {
         _glView = [[FBMoviePlayerView alloc] initWithFrame:rect decoder:_decoder];
