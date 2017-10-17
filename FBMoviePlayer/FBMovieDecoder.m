@@ -14,11 +14,11 @@
 #import "FBAudioManager.h"
 
 //-- ffmpeg headers
-#import "libavcodec/avcodec.h"
-#import "libavutil/avutil.h"
-#import "libavformat/avformat.h"
-#import "libswscale/swscale.h"
-#import "libswresample/swresample.h"
+#import "avcodec.h"
+#import "avutil.h"
+#import "Favformat.h"
+#import "swscale.h"
+#import "swresample.h"
 
 #pragma mark -- static global
 static void avStreamFPSTimeBase(AVStream *st, CGFloat defaultTimeBase, CGFloat *pFPS, CGFloat *pTimeBase)
