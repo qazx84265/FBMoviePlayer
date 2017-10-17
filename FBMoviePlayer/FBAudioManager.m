@@ -268,7 +268,7 @@ NSLog(@"-------->>>>>>>>>> %@", dump); \
     
     
     UInt32 newNumChannels = (UInt32)[AVAudioSession sharedInstance].outputNumberOfChannels;
-    NSLog(@"-------->>>>>>>>>> We've got %d output channels", newNumChannels);
+    NSLog(@"-------->>>>>>>>>> We've got %d output channels", (unsigned int)newNumChannels);
     
     _samplingRate = [AVAudioSession sharedInstance].sampleRate;
     NSLog(@"-------->>>>>>>>>> Current sampling rate: %f", _samplingRate);
@@ -427,7 +427,7 @@ NSLog(@"-------->>>>>>>>>> %@", dump); \
     }
     
     if (type == AVAudioSessionInterruptionTypeEnded) {
-        NSNumber *seccondReason = [[notification userInfo] objectForKey:AVAudioSessionInterruptionOptionKey];
+        NSNumber *seccondReason = [[noti userInfo] objectForKey:AVAudioSessionInterruptionOptionKey];
         switch ([seccondReason integerValue]) {
             case AVAudioSessionInterruptionOptionShouldResume:
                 if (self.playAfterSessionEndInterruption) {
@@ -437,7 +437,7 @@ NSLog(@"-------->>>>>>>>>> %@", dump); \
                 break;
             default:
                 break;
-        
+        }
     }
 }
 
