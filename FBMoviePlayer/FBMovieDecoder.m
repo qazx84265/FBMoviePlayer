@@ -14,11 +14,11 @@
 #import "FBAudioManager.h"
 
 //-- ffmpeg headers
-#import "avcodec.h"
-#import "avutil.h"
-#import "Favformat.h"
-#import "swscale.h"
-#import "swresample.h"
+#import "libavcodec/avcodec.h"
+#import "libavutil/avutil.h"
+#import "libavformat/avformat.h"
+#import "libswscale/swscale.h"
+#import "libswresample/swresample.h"
 
 #pragma mark -- static global
 static void avStreamFPSTimeBase(AVStream *st, CGFloat defaultTimeBase, CGFloat *pFPS, CGFloat *pTimeBase)
@@ -138,6 +138,9 @@ static BOOL audioCodecIsSupported(AVCodecContext *audio)
 //            [self openMovieAtPath:moviePath];
 //        }
         _moviePath = moviePath;
+        
+        _videoStreamIndex = -1;
+        _audioStreamIndex = -1;
     }
     return self;
 }
