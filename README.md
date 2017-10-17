@@ -5,7 +5,7 @@
 * local
 * http
 * rtsp / rtmp
-### file formats
+### formats
 * mp3
 * mp4
 * mov
